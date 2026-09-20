@@ -142,5 +142,5 @@ or that you have explicit permission to save.
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Ahmed Rafin.
+[MIT](LICENSE) — Copyright (c) 2026 Nirob Mia.
 # DropClip
