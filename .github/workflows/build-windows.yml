@@ -1,0 +1,52 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # The runner has no FFmpeg: download the pinned legitimate Windows
+      # build (BtbN FFmpeg-Builds) into assets/ffmpeg so PyInstaller bundles it.
+      - name: Fetch bundled FFmpeg
+        run: python tools/fetch_ffmpeg.py
+
+      - name: Build VideoDownloader.exe
+        run: >
+          pyinstaller --noconfirm --clean --onefile --windowed
+          --name VideoDownloader
+          --icon assets/icon.ico
+          --add-data "assets;assets"
+          app.py
+
+      - name: Verify build output
+        run: |
+          Get-ChildItem dist
+          if (-not (Test-Path "dist/VideoDownloader.exe")) { throw "VideoDownloader.exe was not produced" }
+          if (-not (Test-Path "assets/ffmpeg/ffmpeg.exe")) { throw "bundled ffmpeg.exe missing" }
+          if (-not (Test-Path "assets/ffmpeg/ffprobe.exe")) { throw "bundled ffprobe.exe missing" }
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoDownloader-windows
+          path: dist/VideoDownloader.exe

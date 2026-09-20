@@ -1,0 +1,4 @@
+# Runtime dependencies only (tkinter is part of the Python standard library).
+requests>=2.31
+beautifulsoup4>=4.12
+yt-dlp>=2024.1.0

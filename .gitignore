@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.spec
+*.egg-info/
+*.egg
+
+# PyInstaller
+*.manifest
+
+# Logs & local debug
+*.log
+app.log
+
+# Secrets / local config
+.env
+.env.*
+*.pem
+cookies.txt
+
+# Downloaded media & temp files (never commit these)
+*.mp4
+*.mp3
+*.mkv
+*.webm
+*.m4a
+*.part
+*.ytdl
+*.temp
+*.tmp
+downloads/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Releases live on GitHub Releases, not in the repo
+Releases/
+*.exe
+
+# Bundled FFmpeg binaries are fetched at build time, never committed
+# (see tools/fetch_ffmpeg.py and assets/ffmpeg/README.md).
+# The notices (README.md, UPSTREAM-LICENSE.txt) ARE committed.
+assets/ffmpeg/ffmpeg.exe
+assets/ffmpeg/ffprobe.exe
+assets/ffmpeg/ffplay.exe
