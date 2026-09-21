@@ -36,13 +36,13 @@ Built with Python + tkinter. No browser, no Electron, no bloat.
 
 ### Windows
 
-**[⬇️ Download VideoDownloader.exe](https://github.com/nirobmia-40/DropClip/releases/latest/download/VideoDownloader.exe)**
+**[⬇️ Download VideoDownloader.exe](https://github.com/nirobmia-40/DropClip/releases/tag/v1.0.0)**
 
 No Python required.  
 No separate FFmpeg installation required.  
 Download → Run → Start downloading.
 
-[View all releases](https://github.com/nirobmia-40/DropClip/releases)
+[View all releases](https://github.com/nirobmia-40/DropClip/releases/tag/v1.0.0)
 
 > The button above pulls `VideoDownloader.exe` straight from the latest
 > GitHub Release. If you renamed the release asset, keep it exactly
