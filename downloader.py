@@ -145,14 +145,19 @@ def get_real_pinterest_url(short_url: str) -> str:
         return short_url
 
 
-def extract_pinterest_video_deep(page_url: str) -> str | None:
-    """Extract the best direct MP4 URL from a Pinterest page.
+def extract_pinterest_video_deep(page_url: str) -> tuple[str | None, str | None]:
+    """Extract the best direct MP4 URL (plus a human-readable title) from a Pinterest page.
 
-    Strategy (in order):
+    Returns ``(video_url, title)``; either element may be ``None``.
+
+    URL strategy (in order):
     1. ``og:video`` / ``og:video:secure_url`` meta tag ending in .mp4.
     2. Embedded ``__PWS_DATA__`` JSON tree scanned for an .mp4 URL.
     3. ``v.pinimg.com/videos/...mp4`` regex matches (last match wins,
        as it is usually the highest resolution).
+
+    Title strategy: ``og:title`` meta tag first, then the pin's text
+    (``alt_text`` / ``title`` / ``description`` keys) inside ``__PWS_DATA__``.
     """
     session = requests.Session()
     headers = {
@@ -163,61 +168,108 @@ def extract_pinterest_video_deep(page_url: str) -> str | None:
         "Referer": "https://www.google.com/",
     }
 
+    TITLE_KEYS = ("alt_text", "altText", "title", "description")
+
+    def search_title(node):
+        """First usable pin text in the JSON tree (DFS)."""
+        if isinstance(node, dict):
+            for key in TITLE_KEYS:
+                value = node.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+            for value in node.values():
+                found = search_title(value)
+                if found:
+                    return found
+        elif isinstance(node, list):
+            for item in node:
+                found = search_title(item)
+                if found:
+                    return found
+        return None
+
+    def search_video_url(node):
+        if isinstance(node, dict):
+            if "url" in node and isinstance(node["url"], str) and ".mp4" in node["url"]:
+                return node["url"]
+            for value in node.values():
+                found = search_video_url(value)
+                if found:
+                    return found
+        elif isinstance(node, list):
+            for item in node:
+                found = search_video_url(item)
+                if found:
+                    return found
+        return None
+
     try:
         resp = session.get(page_url, headers=headers, timeout=20)
         html = resp.text
 
-        # 1. OpenGraph meta tag.
+        # 1. OpenGraph meta tags (video + title).
         soup = BeautifulSoup(html, "html.parser")
+        og_title_tag = soup.find("meta", property="og:title")
+        og_title = (
+            og_title_tag.get("content", "").strip()
+            if og_title_tag and og_title_tag.get("content")
+            else None
+        )
         og_video = soup.find("meta", property="og:video") or soup.find(
             "meta", property="og:video:secure_url"
         )
         if og_video and og_video.get("content"):
             url = og_video["content"]
             if url.endswith(".mp4"):
-                return url
+                return url, og_title
 
         # 2. Embedded JSON state.
+        json_title = None
         script_data = soup.find("script", id="__PWS_DATA__")
         if script_data and script_data.string:
             try:
                 data = json.loads(script_data.string)
-
-                def search_json(node):
-                    if isinstance(node, dict):
-                        if "url" in node and isinstance(node["url"], str) and ".mp4" in node["url"]:
-                            return node["url"]
-                        for value in node.values():
-                            found = search_json(value)
-                            if found:
-                                return found
-                    elif isinstance(node, list):
-                        for item in node:
-                            found = search_json(item)
-                            if found:
-                                return found
-                    return None
-
-                best_url = search_json(data)
+                best_url = search_video_url(data)
                 if best_url:
-                    return best_url
+                    json_title = search_title(data)
+                    return best_url, og_title or json_title
+                json_title = search_title(data)
             except Exception as exc:
                 log.debug("PWS JSON parse failed: %s", exc)
 
         # 3. Direct v.pinimg.com MP4 pattern.
         direct_matches = re.findall(r'https://v\.pinimg\.com/videos/[^\s"\'\\]+\.mp4', html)
         if direct_matches:
-            return direct_matches[-1]
+            return direct_matches[-1], og_title or json_title
 
     except Exception as exc:
         log.debug("pinterest deep extract failed: %s", exc)
 
-    return None
+    return None, None
 
 
-def direct_mp4_filename(direct_url: str) -> str:
-    """Deterministic filename for direct-stream downloads (legacy scheme)."""
+_FILENAME_BAD_CHARS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+
+
+def sanitize_filename(name: str | None, max_len: int = 60) -> str:
+    """Make an arbitrary title safe for use as a Windows filename."""
+    cleaned = _FILENAME_BAD_CHARS.sub(" ", name or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
+    if len(cleaned) > max_len:
+        cleaned = cleaned[:max_len].rstrip()
+    return cleaned
+
+
+def direct_mp4_filename(direct_url: str, title: str | None = None) -> str:
+    """Filename for direct-stream downloads.
+
+    Human-readable ``<title> [<shortid>].mp4`` when a title is known,
+    otherwise the legacy deterministic ``pinterest_video_<hash>.mp4``.
+    """
     file_id = re.sub(r"[^a-zA-Z0-9]", "", direct_url)[-12:] or "video"
+    safe = sanitize_filename(title) if title else ""
+    if safe:
+        return f"{safe} [{file_id[-6:]}].mp4"
     return f"pinterest_video_{file_id}.mp4"
 
 
@@ -228,6 +280,12 @@ def friendly_error(message: str) -> str:
         return "Download failed for an unknown reason."
     if "name resolution" in low or "failed to resolve" in low or "max retries" in low:
         return "Network error. Check your internet connection and try again."
+    # Merge problems before the broad "not found" matcher below, so e.g.
+    # "ffmpeg not found" is not misreported as a missing link.
+    ffmpeg_problem = "ffmpeg" in low and ("not found" in low or "merg" in low)
+    merge_problem = "merg" in low and ("fail" in low or "error" in low)
+    if ffmpeg_problem or merge_problem:
+        return "Downloaded streams could not be merged (ffmpeg missing in this build)."
     if "404" in low or "not found" in low:
         return "This link was not found. It may be private, deleted, or incorrect."
     if "403" in low or "forbidden" in low or "login required" in low or "sign in" in low:
@@ -240,18 +298,21 @@ def friendly_error(message: str) -> str:
         return "Secure connection failed. Check your network / VPN and try again."
     if "no video formats" in low or "no formats" in low:
         return "No downloadable video found at this URL."
-    if "ffmpeg" in low and ("not found" in low or "merging" in low):
-        return "Downloaded streams could not be merged (ffmpeg missing in this build)."
     # Fallback: first line only, truncated — never a raw traceback.
     first_line = (message or "").strip().splitlines()[0]
     return first_line[:220] if len(first_line) > 220 else first_line
 
 
-def build_ytdlp_options(output_folder: str | os.PathLike, progress_hook):
+def build_ytdlp_options(output_folder: str | os.PathLike, progress_hook, *,
+                        nocheckcertificate: bool = False):
     """yt-dlp options (unchanged behaviour: best video+audio merged to mp4).
 
     ``ffmpeg_location`` points at the bundled binary so merging works on
     machines without FFmpeg installed and without touching PATH.
+
+    Certificate verification stays ENABLED by default. ``nocheckcertificate``
+    is only ever set for a single targeted retry after a genuine TLS failure
+    (see :func:`looks_like_ssl_error`), never as a blanket default.
     """
     outtmpl = str(Path(output_folder) / "%(title).40s [%(id)s].%(ext)s")
     opts = {
@@ -260,7 +321,6 @@ def build_ytdlp_options(output_folder: str | os.PathLike, progress_hook):
         "progress_hooks": [progress_hook],
         "noplaylist": True,
         "merge_output_format": "mp4",
-        "nocheckcertificate": True,
         "socket_timeout": 20,
         "quiet": True,
         "no_warnings": True,
@@ -269,9 +329,24 @@ def build_ytdlp_options(output_folder: str | os.PathLike, progress_hook):
             "Referer": "https://www.pinterest.com/",
         },
     }
+    if nocheckcertificate:
+        log.warning("retrying with certificate verification disabled (single attempt)")
+        opts["nocheckcertificate"] = True
     ffmpeg = get_ffmpeg_path()
     if ffmpeg is not None:
         opts["ffmpeg_location"] = ffmpeg
     else:
         log.warning("bundled ffmpeg.exe not found; yt-dlp merging may fail")
     return opts
+
+
+def looks_like_ssl_error(message: str | Exception | None) -> bool:
+    """True if a download failure looks like a TLS/certificate problem."""
+    low = str(message or "").lower()
+    if "certificate" in low and "verify" in low:
+        return True
+    if "sslerror" in low or "ssl_error" in low:
+        return True
+    if "ssl" in low and "handshake" in low:
+        return True
+    return "wrong version number" in low and "ssl" in low

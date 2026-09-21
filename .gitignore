@@ -62,3 +62,6 @@ Releases/
 assets/ffmpeg/ffmpeg.exe
 assets/ffmpeg/ffprobe.exe
 assets/ffmpeg/ffplay.exe
+
+# Build-stamped app version (written by CI/local build, never committed)
+assets/version.txt

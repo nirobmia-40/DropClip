@@ -10,6 +10,9 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    # In-app version: release tag on tag pushes, short SHA otherwise.
+    env:
+      APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,6 +32,17 @@ jobs:
       # build (BtbN FFmpeg-Builds) into assets/ffmpeg so PyInstaller bundles it.
       - name: Fetch bundled FFmpeg
         run: python tools/fetch_ffmpeg.py
+
+      # Fail CI here if downloader.py is broken — never ship it in the exe.
+      - name: Run tests
+        run: |
+          pip install pytest
+          pytest -q
+
+      # Stamp the version into assets/ so it is bundled into the EXE and the
+      # in-app version label always matches this build (tag or commit).
+      - name: Stamp app version
+        run: $env:APP_VERSION | Set-Content assets/version.txt -NoNewline
 
       - name: Build VideoDownloader.exe
         run: >

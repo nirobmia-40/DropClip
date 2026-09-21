@@ -34,15 +34,38 @@ from downloader import (
     friendly_error,
     get_real_pinterest_url,
     is_valid_url,
+    looks_like_ssl_error,
     resource_path,
     verify_ffmpeg,
 )
 
 log = logging.getLogger(__name__)
 
-APP_NAME = "VideoDownloader"
+APP_NAME = "DropClip"
 APP_TAGLINE = "Paste a link, hit download — that's it."
-APP_VERSION = "1.0.0"
+
+
+def _app_version() -> str:
+    """Resolve the display version.
+
+    Precedence:
+    1. ``assets/version.txt`` — stamped at build time by CI/local build
+       (bundled into the EXE via ``--add-data assets``), so the in-app
+       version always matches the release tag.
+    2. ``APP_VERSION`` environment variable (handy when running from source).
+    3. ``"dev"`` fallback.
+    """
+    try:
+        stamped = resource_path(os.path.join("assets", "version.txt"))
+        text = Path(stamped).read_text(encoding="utf-8").strip()
+        if text:
+            return text.lstrip("v")
+    except OSError:
+        pass
+    return os.environ.get("APP_VERSION", "dev").strip().lstrip("v") or "dev"
+
+
+APP_VERSION = _app_version()
 
 URL_PLACEHOLDER = "Paste video link here  (pin.it, pinterest.com, YouTube, …)"
 
@@ -124,17 +147,27 @@ class VideoDownloaderApp(tk.Tk):
         title_row = tk.Frame(header, bg=PANEL)
         title_row.pack(fill="x")
 
-        tk.Label(
-            title_row,
-            text="⬇  " + APP_NAME,
-            font=(FONT_UI, 13, "bold"),
-            fg=TEXT,
-            bg=PANEL,
-        ).pack(side="left")
+        if not self._try_logo(title_row):
+            brand = tk.Frame(title_row, bg=PANEL)
+            brand.pack(side="left")
+            tk.Label(
+                brand,
+                text="Drop",
+                font=(FONT_UI, 15, "bold"),
+                fg="#1689FF",
+                bg=PANEL,
+            ).pack(side="left")
+            tk.Label(
+                brand,
+                text="Clip",
+                font=(FONT_UI, 15, "bold"),
+                fg="#20C9E8",
+                bg=PANEL,
+            ).pack(side="left")
 
         tk.Label(
             title_row,
-            text=f"v{APP_VERSION}",
+            text=f"v{APP_VERSION}" if APP_VERSION != "dev" else "dev",
             font=(FONT_UI, 8),
             fg=MUTED,
             bg=PANEL,
@@ -147,6 +180,30 @@ class VideoDownloaderApp(tk.Tk):
             fg=MUTED,
             bg=PANEL,
         ).pack(anchor="w", pady=(2, 0))
+
+    def _try_logo(self, parent) -> bool:
+        """Show ``assets/logo.png`` in the header if present.
+
+        Returns True when the logo was displayed, False to let the caller
+        fall back to the text title. Any failure (missing file, bad image)
+        is silent — branding must never break startup.
+        """
+        try:
+            logo_path = resource_path(os.path.join("assets", "logo.png"))
+            if not Path(logo_path).is_file():
+                return False
+            image = tk.PhotoImage(file=str(logo_path))
+            if image.height() > 48:  # shrink tall artwork to header height
+                image = image.subsample(max(1, image.height() // 44), 1)
+            if image.width() > 460:  # guard against ultra-wide artwork
+                image = image.subsample(1, max(1, image.width() // 460))
+            label = tk.Label(parent, image=image, bg=PANEL, bd=0,
+                             highlightthickness=0)
+            label.pack(side="left")
+            self._logo_image = image  # keep a reference or Tk frees it
+            return True
+        except Exception:
+            return False
 
     def _build_form(self):
         form = tk.Frame(self, bg=BG, padx=24, pady=16)
@@ -477,8 +534,8 @@ class VideoDownloaderApp(tk.Tk):
         self._set_status("Saving video file…", "working")
 
     # -- worker ---------------------------------------------------------------
-    def _download_direct_mp4(self, direct_url: str, output_folder: str):
-        filename = direct_mp4_filename(direct_url)
+    def _download_direct_mp4(self, direct_url: str, output_folder: str, title=None):
+        filename = direct_mp4_filename(direct_url, title)
         self.after(0, lambda: self.file_lbl.config(text=f"📄  {filename}"))
         file_path = Path(output_folder) / filename
 
@@ -515,10 +572,10 @@ class VideoDownloaderApp(tk.Tk):
             # Fast path: Pinterest direct MP4 stream.
             if "pinterest.com" in real_url or "pin.it" in url:
                 self.after(0, lambda: self._set_status("Finding video stream…", "busy"))
-                direct_video = extract_pinterest_video_deep(real_url)
+                direct_video, pin_title = extract_pinterest_video_deep(real_url)
                 if direct_video:
                     try:
-                        self._download_direct_mp4(direct_video, output_folder)
+                        self._download_direct_mp4(direct_video, output_folder, pin_title)
                     except Cancelled:
                         raise
                     except Exception as exc:
@@ -532,9 +589,22 @@ class VideoDownloaderApp(tk.Tk):
             if not ffmpeg_ok:
                 self.after(0, self._on_complete, False, ffmpeg_problem, "")
                 return
-            ydl_opts = build_ytdlp_options(output_folder, self._progress_hook)
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([real_url])
+            try:
+                with yt_dlp.YoutubeDL(build_ytdlp_options(output_folder, self._progress_hook)) as ydl:
+                    ydl.download([real_url])
+            except Exception as first_err:
+                # Targeted fallback: a genuine TLS failure gets ONE retry with
+                # certificate verification relaxed (and the user is told).
+                # Everything else goes straight to the friendly error mapping.
+                if not looks_like_ssl_error(first_err):
+                    raise
+                log.warning("TLS failure, single retry with nocheckcertificate: %s", first_err)
+                self.after(0, lambda: self._set_status(
+                    "Secure connection issue — retrying once…", "working"))
+                retry_opts = build_ytdlp_options(
+                    output_folder, self._progress_hook, nocheckcertificate=True)
+                with yt_dlp.YoutubeDL(retry_opts) as ydl:
+                    ydl.download([real_url])
             self.after(0, self._on_complete, True, "Download completed.", "")
 
         except Cancelled:
