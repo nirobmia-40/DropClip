@@ -194,9 +194,11 @@ class VideoDownloaderApp(tk.Tk):
                 return False
             image = tk.PhotoImage(file=str(logo_path))
             if image.height() > 48:  # shrink tall artwork to header height
-                image = image.subsample(max(1, image.height() // 44), 1)
+                scale = max(1, (image.height() + 43) // 44)
+                image = image.subsample(scale, scale)
             if image.width() > 460:  # guard against ultra-wide artwork
-                image = image.subsample(1, max(1, image.width() // 460))
+                scale = max(1, (image.width() + 459) // 460)
+                image = image.subsample(scale, scale)
             label = tk.Label(parent, image=image, bg=PANEL, bd=0,
                              highlightthickness=0)
             label.pack(side="left")
