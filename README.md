@@ -34,14 +34,19 @@ Built with Python + tkinter. No browser, no Electron, no bloat.
 
 ## Download
 
-Normal Windows users **don't need Python**. Go to
-[**GitHub Releases**](releases) and download:
+### Windows
 
-```
-VideoDownloader.exe
-```
+**[⬇️ Download VideoDownloader.exe](https://github.com/nirobmia-40/DropClip/releases/latest/download/VideoDownloader.exe)**
 
-Run it — no installer, no Python required.
+No Python required.  
+No separate FFmpeg installation required.  
+Download → Run → Start downloading.
+
+[View all releases](https://github.com/nirobmia-40/DropClip/releases)
+
+> The button above pulls `VideoDownloader.exe` straight from the latest
+> GitHub Release. If you renamed the release asset, keep it exactly
+> `VideoDownloader.exe` or this link will break.
 
 ## Run From Source
 
@@ -49,8 +54,8 @@ Requires Python 3.10+ on Windows.
 
 ```powershell
 # 1. Clone the repository
-git clone https://github.com/<your-username>/video-downloader.git
-cd video-downloader
+git clone https://github.com/nirobmia-40/DropClip.git
+cd DropClip
 
 # 2. Create and activate a virtual environment
 python -m venv .venv
