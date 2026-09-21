@@ -1,4 +1,4 @@
-"""Core downloading logic for VideoDownloader.
+"""Core downloading logic for DropClip.
 
 This module contains the networking / extraction / download routines that
 were previously embedded in ``app.py``. Behaviour is intentionally
@@ -76,7 +76,7 @@ FFPROBE_EXE_NAME = "ffprobe.exe"
 
 FFMPEG_MISSING_MESSAGE = (
     "FFmpeg is missing from this installation. "
-    "Please reinstall the latest version of VideoDownloader."
+    "Please reinstall the latest version of DropClip."
 )
 
 

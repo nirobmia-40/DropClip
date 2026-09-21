@@ -1,4 +1,4 @@
-"""VideoDownloader — polished tkinter front-end.
+"""DropClip — polished tkinter front-end.
 
 Workflow (unchanged from the original app):
     1. Paste a URL.
@@ -106,10 +106,10 @@ class VideoDownloaderApp(tk.Tk):
         self._status_job = None  # for transient status reset
         self._has_placeholder = True
 
-        try:  # window icon when running from source or bundled exe
-            icon = resource_path(os.path.join("assets", "icon.ico"))
-            if Path(icon).is_file():
-                self.icon_bitmap(str(icon))
+        try:  # use the supplied DropClip logo for the window icon
+            icon_path = resource_path(os.path.join("assets", "icon.ico"))
+            if Path(icon_path).is_file():
+                self.iconbitmap(str(icon_path))
         except Exception:
             pass
 

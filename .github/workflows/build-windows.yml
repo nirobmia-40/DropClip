@@ -44,10 +44,10 @@ jobs:
       - name: Stamp app version
         run: $env:APP_VERSION | Set-Content assets/version.txt -NoNewline
 
-      - name: Build VideoDownloader.exe
+      - name: Build DropClip.exe
         run: >
           pyinstaller --noconfirm --clean --onefile --windowed
-          --name VideoDownloader
+          --name DropClip
           --icon assets/icon.ico
           --add-data "assets;assets"
           app.py
@@ -55,12 +55,12 @@ jobs:
       - name: Verify build output
         run: |
           Get-ChildItem dist
-          if (-not (Test-Path "dist/VideoDownloader.exe")) { throw "VideoDownloader.exe was not produced" }
+          if (-not (Test-Path "dist/DropClip.exe")) { throw "DropClip.exe was not produced" }
           if (-not (Test-Path "assets/ffmpeg/ffmpeg.exe")) { throw "bundled ffmpeg.exe missing" }
           if (-not (Test-Path "assets/ffmpeg/ffprobe.exe")) { throw "bundled ffprobe.exe missing" }
 
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VideoDownloader-windows
-          path: dist/VideoDownloader.exe
+          name: DropClip-windows
+          path: dist/DropClip.exe
