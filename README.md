@@ -30,19 +30,19 @@ Built with Python + tkinter. No browser, no Electron, no bloat.
 
 | Main window | Downloading |
 |---|---|
-| `screenshots/main.png` | `screenshots/downloading.png` |
+| ![Main window](screenshots/main.png) | ![Downloading](screenshots/downloading.png) |
 
 ## Download
 
 ### Windows
 
-**[⬇️ Download DropClip.exe](https://github.com/nirobmia-40/DropClip/releases/tag/v1.0.0)**
+**[⬇️ Download DropClip.exe](https://github.com/nirobmia-40/DropClip/releases/latest/download/DropClip.exe)**
 
 No Python required.  
 No separate FFmpeg installation required.  
 Download → Run → Start downloading.
 
-[View all releases](https://github.com/nirobmia-40/DropClip/releases/tag/v1.0.0)
+[View all releases](https://github.com/nirobmia-40/DropClip/releases)
 
 > The button above pulls `DropClip.exe` straight from the latest
 > GitHub Release. If you renamed the release asset, keep it exactly

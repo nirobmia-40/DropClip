@@ -103,13 +103,16 @@ class VideoDownloaderApp(tk.Tk):
 
         self.is_downloading = False
         self._cancel_event = threading.Event()
-        self._status_job = None  # for transient status reset
         self._has_placeholder = True
 
-        try:  # use the supplied DropClip logo for the window icon
+        try:  # window icon (ico only; use iconphoto for png)
             icon_path = resource_path(os.path.join("assets", "icon.ico"))
             if Path(icon_path).is_file():
                 self.iconbitmap(str(icon_path))
+            else:
+                logo_path = resource_path(os.path.join("assets", "logo.png"))
+                if Path(logo_path).is_file():
+                    self.iconphoto(True, tk.PhotoImage(file=str(logo_path)))
         except Exception:
             pass
 
@@ -194,7 +197,7 @@ class VideoDownloaderApp(tk.Tk):
                 return False
             image = tk.PhotoImage(file=str(logo_path))
             if image.height() > 48:  # shrink tall artwork to header height
-                scale = max(1, (image.height() + 43) // 44)
+                scale = max(1, (image.height() + 47) // 48)
                 image = image.subsample(scale, scale)
             if image.width() > 460:  # guard against ultra-wide artwork
                 scale = max(1, (image.width() + 459) // 460)

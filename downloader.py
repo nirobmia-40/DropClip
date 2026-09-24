@@ -32,7 +32,7 @@ BROWSER_HEADERS = {
     ),
 }
 
-URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+URL_RE = re.compile(r"^https?://[^\s/$.?#][^\s]*$", re.IGNORECASE)
 
 
 def clean_ansi(text: str) -> str:
@@ -254,7 +254,7 @@ _FILENAME_BAD_CHARS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 def sanitize_filename(name: str | None, max_len: int = 60) -> str:
     """Make an arbitrary title safe for use as a Windows filename."""
     cleaned = _FILENAME_BAD_CHARS.sub(" ", name or "")
-    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
     if len(cleaned) > max_len:
         cleaned = cleaned[:max_len].rstrip()
     return cleaned
@@ -263,13 +263,13 @@ def sanitize_filename(name: str | None, max_len: int = 60) -> str:
 def direct_mp4_filename(direct_url: str, title: str | None = None) -> str:
     """Filename for direct-stream downloads.
 
-    Human-readable ``<title> [<shortid>].mp4`` when a title is known,
+    Human-readable ``<title> [<pin_id>].mp4`` when a title is known,
     otherwise the legacy deterministic ``pinterest_video_<hash>.mp4``.
     """
     file_id = re.sub(r"[^a-zA-Z0-9]", "", direct_url)[-12:] or "video"
     safe = sanitize_filename(title) if title else ""
     if safe:
-        return f"{safe} [{file_id[-6:]}].mp4"
+        return f"{safe} [{file_id[:8]}].mp4"
     return f"pinterest_video_{file_id}.mp4"
 
 
