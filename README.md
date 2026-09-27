@@ -36,13 +36,13 @@ Built with Python + tkinter. No browser, no Electron, no bloat.
 
 ### Windows
 
-**[⬇️ Download DropClip.exe](https://github.com/nirobmia-40/DropClip/releases/latest/download/DropClip.exe)**
+**[⬇️ Download DropClip.exe](https://github.com/nirobmia-40/DropClip/releases/tag/v1.0.2)**
 
 No Python required.  
 No separate FFmpeg installation required.  
 Download → Run → Start downloading.
 
-[View all releases](https://github.com/nirobmia-40/DropClip/releases)
+[View all releases](https://github.com/nirobmia-40/DropClip/releases/tag/v1.0.2)
 
 > The button above pulls `DropClip.exe` straight from the latest
 > GitHub Release. If you renamed the release asset, keep it exactly
@@ -109,7 +109,7 @@ HTTP calls). CI runs it before every Windows build — a broken
 
 The executable runs without Python or FFmpeg installed and works outside the
 development folder. Official builds are produced by the
-[`build-windows.yml`](.github/workflows/build-windows.yml) GitHub Actions
+
 workflow on a `windows-latest` runner (which fetches the same pinned FFmpeg
 build — the runner has no FFmpeg preinstalled); the `.exe` is distributed
 through **GitHub Releases**, not committed to this repository.
